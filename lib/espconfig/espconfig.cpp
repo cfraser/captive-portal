@@ -28,10 +28,10 @@ bool ESPConfig::loadConfig() {
     configFile.flush();
     configFile.close();
 
-    StaticJsonBuffer<200> jsonBuffer;
-    JsonObject& json = jsonBuffer.parseObject(buf.get());
+    StaticJsonDocument<20> json;
+    deserializeJson(json, buf.get());
 
-    if (!json.success()) {
+    if (!json.isNull()) {
         Serial.println("Failed to parse config file");
         return false;
     }
@@ -57,8 +57,7 @@ bool ESPConfig::wasLoaded() {
 }
 
 bool ESPConfig::saveConfig() {
-    StaticJsonBuffer<200> jsonBuffer;
-    JsonObject& json = jsonBuffer.createObject();
+    DynamicJsonDocument json(20);
 
     json[SSID] = ssid;
     json[PASSWORD] = password;
@@ -71,7 +70,7 @@ bool ESPConfig::saveConfig() {
         return false;
     }
 
-    json.printTo(configFile);
+    serializeJson(json, configFile);
     return true;
 }
 

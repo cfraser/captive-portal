@@ -1,11 +1,19 @@
 cmake_minimum_required(VERSION 3.2)
-project(minimal)
+project(captive-portal)
 
 include(CMakeListsPrivate.txt)
+include_directories( ${CMAKE_SOURCE_DIR})
+include_directories( ${CMAKE_LIBRARY_PATH} )
 
 add_custom_target(
     PLATFORMIO_BUILD ALL
     COMMAND ${PLATFORMIO_CMD} -f -c clion run
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+add_custom_target(
+    PLATFORMIO_BUILD_VERBOSE ALL
+    COMMAND ${PLATFORMIO_CMD} -f -c clion run --verbose
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
@@ -18,6 +26,12 @@ add_custom_target(
 add_custom_target(
     PLATFORMIO_CLEAN ALL
     COMMAND ${PLATFORMIO_CMD} -f -c clion run --target clean
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+add_custom_target(
+    PLATFORMIO_MONITOR ALL
+    COMMAND ${PLATFORMIO_CMD} -f -c clion device monitor
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 

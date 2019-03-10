@@ -9,7 +9,7 @@
 #include <ESP8266WebServer.h>
 #include <WebSocketsServer.h>
 #include <espconfig.h>
-#include <string.h>
+#include <cstring>
 
 ESP8266WebServer httpServer(80);
 WebSocketsServer webSocket(81);
@@ -38,7 +38,7 @@ void startOTA(void) {
     ArduinoOTA.begin();
 }
 
-void webSocketEvent(uint8_t num, WStype_t type, char* payload, size_t length) { // When a WebSocket message is received
+void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) { // When a WebSocket message is received
     switch (type) {
         case WStype_DISCONNECTED:             // if the websocket is disconnected
             Serial.printf("[%u] Disconnected!\n", num);
