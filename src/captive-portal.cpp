@@ -56,10 +56,11 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
             break;
         case WStype_TEXT:                     // if new text data is received
             Serial.printf("[%u] get Text: %s\n", num, payload);
-            if (payload[0] == ':') {
+            if (payload[0] == '{') {
                 String buf;
-                buf = (const char*) &payload[1];
+                buf = (const char*) payload;
                 Serial.println("Received config: ");
+                // TODO: store the config.
                 Serial.println(buf);
             } else if (payload[0] == 'M') {
 
