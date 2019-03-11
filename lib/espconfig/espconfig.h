@@ -18,11 +18,12 @@ public:
     bool loadConfig();
     bool saveConfig();
     bool wasLoaded();
+    char* getEspInfo();
 
-    char *getSsid() const;
-    char *getPassword() const;
-    char *getHostName() const;
-    char *getMdnsName() const;
+    char* getSsid() const;
+    char* getPassword() const;
+    char* getHostName() const;
+    char* getMdnsName() const;
 
 protected:
     void setSsid(char *ssid);

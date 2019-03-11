@@ -1,21 +1,28 @@
 //
 // Created by cfraser on 2018-12-02.
 //
-#include <Arduino.h>
-#include <ESP8266WiFi.h>
-#include <ESP8266mDNS.h>
-#include <WiFiUdp.h>
 #include <ArduinoOTA.h>
-#include <ESP8266WebServer.h>
-#include <WebSocketsServer.h>
-#include <espconfig.h>
+#include <Arduino.h>
 #include <cstring>
+#include <DNSServer.h>
+#include <espconfig.h>
+#include <ESP8266mDNS.h>
+#include <ESP8266WiFi.h>
+#include <ESP8266WebServer.h>
+#include <ESP8266mDNS.h>
+#include <WebSocketsServer.h>
 
 ESP8266WebServer httpServer(80);
-WebSocketsServer webSocket(81);
+WebSocketsServer git webSocket(81);
 ESPConfig config;
-const String INDEX_SOURCE = "<div style=\"position:absolute; left:280px; top:10px;\"></div><div style=\"padding: 15px\"> <button style=\"width: 175px;height: 100px;padding: 15px;margin: 20px\" onclick=\"on()\">On</button> <button style=\"width: 175px;height: 100px;padding: 15px;margin: 20px\" onClick=\"off()\">Off</button></div><script>var connection=new WebSocket('ws://' + location.hostname + ':81/', ['arduino']); connection.onopen=function(){connection.send('Connect ' + new Date());}; connection.onerror=function(error){console.log('WebSocket Error ', error);}; connection.onmessage=function(e){console.log('Server: ', e.data);}; connection.onclose=function(){console.log('WebSocket connection closed');}; function on(){connection.send(\"O\");}function off(){connection.send(\"F\");}</script>";
+DNSServer dnsServer;
+int lastStatus = WL_IDLE_STATUS;
+
+const byte DNS_PORT = 53;
 const int MS_PER_FRAME = 16; // 60 fps
+const IPAddress CAPTIVE_IP(10, 0, 0, 1);
+const IPAddress CAPTIVE_NETMASK(255, 255, 255, 0);
+
 
 
 void startOTA(void) {
@@ -66,26 +73,96 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
     }
 }
 
-void initWebSocket() { // Start a WebSocket httpServer
+void initWebSocket() {
+    // Start a WebSocket httpServer
     webSocket.begin();                          // start the websocket httpServer
     webSocket.onEvent(webSocketEvent);          // if there's an incomming websocket message, go to function 'webSocketEvent'
 }
 
-void handleNotFound(){ // if the requested file or page doesn't exist, return a 404 not found error
-    httpServer.send(404, "text/plain", "404: File Not Found");
+String getContentType(String filename) { // convert the file extension to the MIME type
+    if (filename.endsWith(".html")) return "text/html";
+    else if (filename.endsWith(".css")) return "text/css";
+    else if (filename.endsWith(".js")) return "application/javascript";
+    else if (filename.endsWith(".ico")) return "image/x-icon";
+    return "text/plain";
+}
+
+void addNoCacheHeader() {
+    httpServer.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    httpServer.sendHeader("Pragma", "no-cache");
+    httpServer.sendHeader("Expires", "-1");
+}
+
+boolean handleRequest() {
+    Serial.println("handleRequest: [" + httpServer.uri() + "]");
+    String resourcePath = "/www" + httpServer.uri();
+
+    // if a folder is specified append index.html
+    if (resourcePath.endsWith("/")) {
+        resourcePath += "index.html";
+        Serial.println("\t" + resourcePath);
+    }
+
+    if (SPIFFS.exists(resourcePath)) {
+        Serial.println("\t" + resourcePath + " exists.");
+        File file = SPIFFS.open(resourcePath, "r");
+        httpServer.setContentLength(httpServer.streamFile(file, getContentType(resourcePath)));
+        file.close();
+        addNoCacheHeader();
+        return true;
+    }
+    return false;
 }
 
 
-void handleRootPath() {
-    httpServer.send(200, "text/html", INDEX_SOURCE );
+void handleNotFound(){
+    if (!handleRequest()) {
+        // if the requested file or page doesn't exist, redirect to root.
+        httpServer.send(404, "text/html", "");
+        Serial.println("\t" + httpServer.uri() + " was not found.");
+    }
 }
+
+String toStringIp(IPAddress ip) {
+    String res = "";
+    for (int i = 0; i < 3; i++) {
+        res += String((ip >> (8 * i)) & 0xFF) + ".";
+    }
+    res += String(((ip >> 8 * 3)) & 0xFF);
+    return res;
+}
+
+void handleRedirect(){
+        // if the requested file or page doesn't exist, redirect to root.
+        httpServer.sendHeader("Location", String("http://") + toStringIp(httpServer.client().localIP()) + "/index.html", true);
+        httpServer.send(302, "text/plain", "");
+        httpServer.client().stop();
+}
+
+
 
 void initHttpServer() { // Start a HTTP httpServer with a file read handler and an upload handler
-    httpServer.on("/", handleRootPath);
-    httpServer.onNotFound(handleNotFound);          // if someone requests any other file or page, go to function 'handleNotFound'
-    httpServer.begin();                             // start the HTTP httpServer
-    //Serial.println("HTTP httpServer started.");
+//    httpServer.on("/generate_204", HTTP_GET, handleNotFound);
+//    httpServer.on("/fwlink", HTTP_GET, handleNotFound);
+//    httpServer.on("/wpad.dat", HTTP_GET, handleNotFound);
+    httpServer.onNotFound(handleNotFound);
+    httpServer.begin();
 }
+
+void initDNS() {
+    /* Setup the DNS server redirecting all the domains to the apIP */
+    dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
+    dnsServer.start(DNS_PORT, "*", CAPTIVE_IP);
+}
+
+void initCaptivePortal() {
+    WiFi.mode(WIFI_AP);
+    WiFi.softAPConfig(CAPTIVE_IP, CAPTIVE_IP, CAPTIVE_NETMASK);
+    WiFi.softAP(config.getSsid(), config.getPassword());
+    Serial.printf("Config: Using AP mode with the SSID of [%s] and password [%s].\n", config.getSsid(), config.getPassword());
+    Serial.printf("Config: My IP is: %s\n", WiFi.softAPIP().toString().c_str());
+}
+
 
 void initWifi() {
     if (config.wasLoaded()) {
@@ -111,6 +188,7 @@ void initWifi() {
                     WiFi.mode(WIFI_AP);
                     break;
                 case WL_NO_SSID_AVAIL:
+                    WiFi.disconnect();
                     Serial.printf("The ssid %s was could not be found!", config.getSsid());
                     WiFi.mode(WIFI_AP);
                     break;
@@ -122,34 +200,43 @@ void initWifi() {
                     break;
             }
             Serial.println("Retrying connection...");
+            delay(1000);
         }
         WiFi.begin(config.getSsid(), config.getPassword());
-        Serial.println("My IP is: ");
+        Serial.println("Captive portal IP is: ");
         Serial.println(WiFi.localIP());
     } else {
-        WiFi.mode(WIFI_AP);
-        WiFi.softAP(config.getSsid(), config.getPassword());
-        Serial.printf("No config loaded, using AP mode with the SSID of [%s] and password [%s].\n", config.getSsid(), config.getPassword());
-        Serial.printf("My IP is: %s\n", WiFi.softAPIP().toString().c_str());
+        // Start captive portal.
+        initCaptivePortal();
+        initDNS();
     }
 }
 
 void initMDNS() { // Start the mDNS responder
-    MDNS.begin(config.getMdnsName());                        // start the multicast domain name httpServer
-    Serial.print("mDNS responder started: http://");
-    Serial.print(config.getMdnsName());
-    Serial.println(".local");
+
+    // start the multicast domain name httpServer
+    if (!MDNS.begin(config.getMdnsName())) {
+        Serial.print("Unable to start mDNS responder!");
+    } else {
+        Serial.print("mDNS responder started: http://");
+        Serial.print(config.getMdnsName());
+        Serial.println(".local");
+
+        MDNS.addService("http", "tcp", 80);
+    }
 }
 
-void setup(void)
-{
-    if (!config.loadConfig()) {
-        Serial.println("Config not found. Using defaults.");
-    }
+void setup(void) {
     // Start Serial
     Serial.begin(74880);
     Serial.println("Starting.");
-    delay(250);
+
+    if (!config.loadConfig()) {
+        Serial.println("Config: Not found. Using defaults.");
+    } else {
+        Serial.println("Config: Loaded.");
+    }
+
     initWifi();
     Serial.println("WIFI: Ready.");
     initMDNS();
@@ -162,8 +249,9 @@ void setup(void)
 }
 
 void processInput() {
-    webSocket.loop();                           // constantly check for websocket events
-    httpServer.handleClient();                      // run the httpServer
+    dnsServer.processNextRequest();
+    httpServer.handleClient();
+    webSocket.loop();
 }
 
 void update() {

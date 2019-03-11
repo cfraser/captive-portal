@@ -10,6 +10,7 @@ bool ESPConfig::loadConfig() {
     File configFile = SPIFFS.open(CONFIG_FILE, "r");
     if (!configFile) {
         Serial.println("Failed to open config file");
+        return false;
     }
 
     size_t size = configFile.size();
@@ -78,7 +79,7 @@ bool ESPConfig::saveConfig() {
 
 ESPConfig::ESPConfig() {
     ssid = (char*) "";
-    password = (char*) "newphonewhodis";
+    password = (char*) "newespwhodis";
     hostName = (char*) "esp8266-";
     mdns = (char*) "";
 
@@ -120,4 +121,30 @@ void ESPConfig::setHostName(char *hostName) {
 
 void ESPConfig::setMdns(char *mdns) {
     ESPConfig::mdns = mdns;
+}
+
+char* ESPConfig::getEspInfo() {
+    DynamicJsonDocument json(20);
+
+    Serial.printf( "\n\n\nESP8266 INFORMATION\n===================\n" );
+
+    //ESP.getVcc() ⇒ may be used to measure supply voltage. ESP needs to reconfigure the ADC at startup in order for this feature to be available. ⇒ https://github.com/esp8266/Arduino/blob/master/doc/libraries.md#user-content-esp-specific-apis
+    json["bootVersion"] =  ESP.getBootVersion();
+    json["bootMode"] =  ESP.getBootMode();
+    json["chipId"] =  ESP.getChipId();
+    json["cpuFreqMhz"] =  ESP.getCpuFreqMHz();
+    json["cycleCount"] =  ESP.getCycleCount();
+    json["flashChipId"] =  ESP.getFlashChipId();
+    json["flashChipRealSize"] =  ESP.getFlashChipRealSize();
+    json["flashChipSize"] =  ESP.getFlashChipSize();
+    json["flashChipSpeed"] =  ESP.getFlashChipSpeed();
+    json["flashChipMode"] =  ESP.getFlashChipMode();
+    json["flashChipSizeByChipId"] =  ESP.getFlashChipSizeByChipId();
+    json["freeHeap"] =  ESP.getFreeHeap();
+    json["freeSketchSpace"] =  ESP.getFreeSketchSpace();
+    json["sdkVersion"] =  ESP.getSdkVersion();
+    json["sketchSize"] =  ESP.getSketchSize();
+    char* retVal = new char[json.size()];
+    deserializeJson(json, retVal);
+    return retVal;
 }
