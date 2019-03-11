@@ -37,10 +37,10 @@ bool ESPConfig::loadConfig() {
         return false;
     }
 
-    strcpy(ssid, json[SSID]);
-    strcpy(password, json[PASSWORD]);
-    strcpy(hostName, json[HOSTNAME]);
-    strcpy(mdns, json[MDNS]);
+    ssid = (const char *) json[SSID];
+    password = (const char *) json[PASSWORD];
+    hostName = (const char *) json[HOSTNAME];
+    mdns = (const char *) json[MDNS];
 
     Serial.print("Loaded serverName: ");
     Serial.println(getSsid());
@@ -78,32 +78,32 @@ bool ESPConfig::saveConfig() {
 
 
 ESPConfig::ESPConfig() {
-    ssid = (char*) "";
-    password = (char*) "newespwhodis";
-    hostName = (char*) "esp8266-";
-    mdns = (char*) "";
+    ssid = "";
+    password = "newespwhodis";
+    hostName = "esp8266-";
+    mdns = "";
 
     uint8_t mac[6];
     char macStr[6] = { 0 };
     wifi_get_macaddr(0x0, mac);
     sprintf(macStr, "%02X%02X",  mac[4], mac[5]);
-    strcat(hostName, macStr);
-    strcpy(mdns, hostName);
+    hostName += macStr;
+    mdns = hostName;
 }
 
-char *ESPConfig::getSsid() const {
+String ESPConfig::getSsid() const {
     return ssid;
 }
 
-char *ESPConfig::getPassword() const {
+String ESPConfig::getPassword() const {
     return password;
 }
 
-char *ESPConfig::getHostName() const {
+String ESPConfig::getHostName() const {
     return hostName;
 }
 
-char *ESPConfig::getMdnsName() const {
+String ESPConfig::getMdnsName() const {
     return mdns;
 }
 

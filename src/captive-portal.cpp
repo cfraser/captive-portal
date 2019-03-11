@@ -13,10 +13,9 @@
 #include <WebSocketsServer.h>
 
 ESP8266WebServer httpServer(80);
-WebSocketsServer git webSocket(81);
+WebSocketsServer webSocket(81);
 ESPConfig config;
 DNSServer dnsServer;
-int lastStatus = WL_IDLE_STATUS;
 
 const byte DNS_PORT = 53;
 const int MS_PER_FRAME = 16; // 60 fps
@@ -27,7 +26,7 @@ const IPAddress CAPTIVE_NETMASK(255, 255, 255, 0);
 
 void startOTA(void) {
     Serial.println("Starting OTA");
-    ArduinoOTA.setHostname(config.getHostName());
+    ArduinoOTA.setHostname(config.getHostName().c_str());
     ArduinoOTA.onStart([]() { // switch off all the PWMs during upgrade
     });
 
@@ -52,15 +51,14 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
             break;
         case WStype_CONNECTED: {              // if a new websocket connection is established
             IPAddress ip = webSocket.remoteIP(num);
-            Serial.printf("[%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
+            //Serial.printf("[%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
         }
             break;
         case WStype_TEXT:                     // if new text data is received
             Serial.printf("[%u] get Text: %s\n", num, payload);
-            if (payload[0] == '#') {            // we get RGB data
-            } else if (payload[0] == 'C') {
-                char* buf = new char[length];
-                strncpy(buf, (const char*) payload[1], length - 1);
+            if (payload[0] == ':') {
+                String buf;
+                buf = (const char*) &payload[1];
                 Serial.println("Received config: ");
                 Serial.println(buf);
             } else if (payload[0] == 'M') {
@@ -80,7 +78,7 @@ void initWebSocket() {
 }
 
 String getContentType(String filename) { // convert the file extension to the MIME type
-    if (filename.endsWith(".html")) return "text/html";
+    if (filename.endsWith(".html") || filename.endsWith(".htm")) return "text/html";
     else if (filename.endsWith(".css")) return "text/css";
     else if (filename.endsWith(".js")) return "application/javascript";
     else if (filename.endsWith(".ico")) return "image/x-icon";
@@ -93,7 +91,13 @@ void addNoCacheHeader() {
     httpServer.sendHeader("Expires", "-1");
 }
 
-boolean handleRequest() {
+void handleNotFound(){
+    httpServer.send(404, "text/html", "");
+    httpServer.client().stop();
+    Serial.println("\t" + httpServer.uri() + " was not found.");
+}
+
+void handleRequest() {
     Serial.println("handleRequest: [" + httpServer.uri() + "]");
     String resourcePath = "/www" + httpServer.uri();
 
@@ -109,17 +113,8 @@ boolean handleRequest() {
         httpServer.setContentLength(httpServer.streamFile(file, getContentType(resourcePath)));
         file.close();
         addNoCacheHeader();
-        return true;
-    }
-    return false;
-}
-
-
-void handleNotFound(){
-    if (!handleRequest()) {
-        // if the requested file or page doesn't exist, redirect to root.
-        httpServer.send(404, "text/html", "");
-        Serial.println("\t" + httpServer.uri() + " was not found.");
+    } else {
+        handleNotFound();
     }
 }
 
@@ -142,10 +137,10 @@ void handleRedirect(){
 
 
 void initHttpServer() { // Start a HTTP httpServer with a file read handler and an upload handler
-//    httpServer.on("/generate_204", HTTP_GET, handleNotFound);
-//    httpServer.on("/fwlink", HTTP_GET, handleNotFound);
-//    httpServer.on("/wpad.dat", HTTP_GET, handleNotFound);
-    httpServer.onNotFound(handleNotFound);
+    httpServer.on("/generate_204", HTTP_GET, handleNotFound);
+    httpServer.on("/fwlink", HTTP_GET, handleNotFound);
+    httpServer.on("/wpad.dat", HTTP_GET, handleNotFound);
+    httpServer.onNotFound(handleRequest);
     httpServer.begin();
 }
 
@@ -159,7 +154,7 @@ void initCaptivePortal() {
     WiFi.mode(WIFI_AP);
     WiFi.softAPConfig(CAPTIVE_IP, CAPTIVE_IP, CAPTIVE_NETMASK);
     WiFi.softAP(config.getSsid(), config.getPassword());
-    Serial.printf("Config: Using AP mode with the SSID of [%s] and password [%s].\n", config.getSsid(), config.getPassword());
+    Serial.printf("Config: Using AP mode with the SSID of [%s] and password [%s].\n", config.getSsid().c_str(), config.getPassword().c_str());
     Serial.printf("Config: My IP is: %s\n", WiFi.softAPIP().toString().c_str());
 }
 
@@ -189,7 +184,7 @@ void initWifi() {
                     break;
                 case WL_NO_SSID_AVAIL:
                     WiFi.disconnect();
-                    Serial.printf("The ssid %s was could not be found!", config.getSsid());
+                    Serial.printf("The ssid %s was could not be found!", config.getSsid().c_str());
                     WiFi.mode(WIFI_AP);
                     break;
                 case WL_CONNECTED:
@@ -226,6 +221,14 @@ void initMDNS() { // Start the mDNS responder
     }
 }
 
+void initSPIFFs() {
+    SPIFFS.begin();
+    Dir dir = SPIFFS.openDir("/");
+//    while(dir.next()) {
+//        Serial.println(dir.fileName());
+//    }
+}
+
 void setup(void) {
     // Start Serial
     Serial.begin(74880);
@@ -236,7 +239,8 @@ void setup(void) {
     } else {
         Serial.println("Config: Loaded.");
     }
-
+    initSPIFFs();
+    Serial.println("SPIFFs: Ready.");
     initWifi();
     Serial.println("WIFI: Ready.");
     initMDNS();
@@ -250,6 +254,7 @@ void setup(void) {
 
 void processInput() {
     dnsServer.processNextRequest();
+
     httpServer.handleClient();
     webSocket.loop();
 }
@@ -266,6 +271,6 @@ void loop() {
     processInput();
     update();
     render();
-    unsigned long frameDelay = MS_PER_FRAME - (millis() - start);
+    unsigned long frameDelay = MS_PER_FRAME - (millis() - start) < 0 ? 0 : (millis() - start);
     delay(frameDelay);
 }

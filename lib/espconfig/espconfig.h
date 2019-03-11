@@ -20,10 +20,10 @@ public:
     bool wasLoaded();
     char* getEspInfo();
 
-    char* getSsid() const;
-    char* getPassword() const;
-    char* getHostName() const;
-    char* getMdnsName() const;
+    String getSsid() const;
+    String getPassword() const;
+    String getHostName() const;
+    String getMdnsName() const;
 
 protected:
     void setSsid(char *ssid);
@@ -34,16 +34,16 @@ protected:
 private:
     bool loadSuccessful = false;
 
-    const char* CONFIG_FILE = "/config.json";
-    const char* SSID = "ssid";
-    const char* PASSWORD = "pw";
-    const char* HOSTNAME = "hn";
-    const char* MDNS = "mdns";
+    const String CONFIG_FILE = "/config.json";
+    const String SSID = "ssid";
+    const String PASSWORD = "pw";
+    const String HOSTNAME = "hn";
+    const String MDNS = "mdns";
 
-    char* ssid;
-    char* password;
-    char* hostName;
-    char* mdns;
+    String ssid;
+    String password;
+    String hostName;
+    String mdns;
 };
 
 
