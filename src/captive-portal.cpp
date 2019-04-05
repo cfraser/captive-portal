@@ -3,7 +3,7 @@
 //
 #include <ArduinoOTA.h>
 #include <Arduino.h>
-#include <cstring>
+#include <string>
 #include <DNSServer.h>
 #include <espconfig.h>
 #include <ESP8266mDNS.h>
@@ -11,6 +11,7 @@
 #include <ESP8266WebServer.h>
 #include <ESP8266mDNS.h>
 #include <WebSocketsServer.h>
+#include "wwwcontent.h"
 
 ESP8266WebServer httpServer(80);
 WebSocketsServer webSocket(81);
@@ -92,15 +93,127 @@ void addNoCacheHeader() {
     httpServer.sendHeader("Expires", "-1");
 }
 
+void addGZipHeader() {
+    httpServer.sendHeader("Content-Encoding",  "gzip");
+}
+
+void addContentLengthHeader(size_t length) {
+    httpServer.sendHeader("Content-Length",  String(length));
+}
+
+const String responseCodeToString(int code) {
+    switch (code) {
+        case 100:
+            return F("Continue");
+        case 101:
+            return F("Switching Protocols");
+        case 200:
+            return F("OK");
+        case 201:
+            return F("Created");
+        case 202:
+            return F("Accepted");
+        case 203:
+            return F("Non-Authoritative Information");
+        case 204:
+            return F("No Content");
+        case 205:
+            return F("Reset Content");
+        case 206:
+            return F("Partial Content");
+        case 300:
+            return F("Multiple Choices");
+        case 301:
+            return F("Moved Permanently");
+        case 302:
+            return F("Found");
+        case 303:
+            return F("See Other");
+        case 304:
+            return F("Not Modified");
+        case 305:
+            return F("Use Proxy");
+        case 307:
+            return F("Temporary Redirect");
+        case 400:
+            return F("Bad Request");
+        case 401:
+            return F("Unauthorized");
+        case 402:
+            return F("Payment Required");
+        case 403:
+            return F("Forbidden");
+        case 404:
+            return F("Not Found");
+        case 405:
+            return F("Method Not Allowed");
+        case 406:
+            return F("Not Acceptable");
+        case 407:
+            return F("Proxy Authentication Required");
+        case 408:
+            return F("Request Time-out");
+        case 409:
+            return F("Conflict");
+        case 410:
+            return F("Gone");
+        case 411:
+            return F("Length Required");
+        case 412:
+            return F("Precondition Failed");
+        case 413:
+            return F("Request Entity Too Large");
+        case 414:
+            return F("Request-URI Too Large");
+        case 415:
+            return F("Unsupported Media Type");
+        case 416:
+            return F("Requested range not satisfiable");
+        case 417:
+            return F("Expectation Failed");
+        case 500:
+            return F("Internal Server Error");
+        case 501:
+            return F("Not Implemented");
+        case 502:
+            return F("Bad Gateway");
+        case 503:
+            return F("Service Unavailable");
+        case 504:
+            return F("Gateway Time-out");
+        case 505:
+            return F("HTTP Version not supported");
+        default:
+            return F("");
+    }
+}
+
+void sendRawHeader(int code, size_t contentLength) {
+    String response = String(F("HTTP/1.1 "));
+    response += String(code);
+    response += " ";
+    response += responseCodeToString(code);
+    response += "\r\n";
+    response += "Cache-Control: no-cache, no-store, must-revalidate\r\n";
+    response += "Pragma: no-cache\r\n";
+    response += "Expires: -1\r\n";
+    response += "Content-Encoding: gzip\r\n";
+//    response += "Accept-Ranges: none\r\n";
+//    response += "Transfer-Encoding: chunked\r\n";
+    response += "Connection: close\r\n";
+    httpServer.sendContent(response);
+}
+
 void handleNotFound(){
     httpServer.send(404, "text/html", "");
     httpServer.client().stop();
     Serial.println("\t" + httpServer.uri() + " was not found.");
 }
 
+
 void handleRequest() {
-    Serial.println("handleRequest: [" + httpServer.uri() + "]");
-    String resourcePath = "/www" + httpServer.uri();
+    Serial.println("handleRequest: [ GET: " + httpServer.hostHeader() + httpServer.uri() + "]");
+    String resourcePath = httpServer.uri();
 
     // if a folder is specified append index.html
     if (resourcePath.endsWith("/")) {
@@ -108,13 +221,19 @@ void handleRequest() {
         Serial.println("\t" + resourcePath);
     }
 
-    if (SPIFFS.exists(resourcePath)) {
-        Serial.println("\t" + resourcePath + " exists.");
-        File file = SPIFFS.open(resourcePath, "r");
-        httpServer.setContentLength(httpServer.streamFile(file, getContentType(resourcePath)));
-        file.close();
-        addNoCacheHeader();
-    } else {
+    boolean found = false;
+    for (size_t x = 0; x < sizeof(wwwContent) / sizeof(wwwContent[0]);x++) {
+        if (resourcePath.endsWith(wwwContent[x].name)) {
+            sendRawHeader(200, wwwContent[x].size);
+            httpServer.sendContent("Content-Length: " + String(wwwContent[x].size) + "\r\n");
+            httpServer.sendContent("Content-Type: " + getContentType(resourcePath) + "\r\n\r\n");
+            httpServer.sendContent_P((char *) &wwwContentData[wwwContent[x].offset], wwwContent[x].size);
+            found = true;
+            break;
+        }
+    }
+
+    if (!found) {
         handleNotFound();
     }
 }

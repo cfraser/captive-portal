@@ -19,5 +19,5 @@ function updateConfig(key, value) {
 }
 
 function submitConfig() {
-    connection.send(":" + JSON.stringify(config));
+    connection.send(JSON.stringify(config));
 }

@@ -89,6 +89,7 @@ ESPConfig::ESPConfig() {
     sprintf(macStr, "%02X%02X",  mac[4], mac[5]);
     hostName += macStr;
     mdns = hostName;
+    ssid = hostName;
 }
 
 String ESPConfig::getSsid() const {
