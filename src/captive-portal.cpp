@@ -11,7 +11,7 @@
 #include <ESP8266WebServer.h>
 #include <ESP8266mDNS.h>
 #include <WebSocketsServer.h>
-#include "wwwcontent.h"
+#include "portalResources.h"
 
 ESP8266WebServer httpServer(80);
 WebSocketsServer webSocket(81);
@@ -25,7 +25,7 @@ const IPAddress CAPTIVE_NETMASK(255, 255, 255, 0);
 
 
 
-void startOTA(void) {
+void startOTA() {
     Serial.println("Starting OTA");
     ArduinoOTA.setHostname(config.getHostName().c_str());
     ArduinoOTA.onStart([]() { // switch off all the PWMs during upgrade
@@ -79,7 +79,7 @@ void initWebSocket() {
     webSocket.onEvent(webSocketEvent);          // if there's an incomming websocket message, go to function 'webSocketEvent'
 }
 
-String getContentType(String filename) { // convert the file extension to the MIME type
+String getContentType(String& filename) { // convert the file extension to the MIME type
     if (filename.endsWith(".html") || filename.endsWith(".htm")) return "text/html";
     else if (filename.endsWith(".css")) return "text/css";
     else if (filename.endsWith(".js")) return "application/javascript";
@@ -188,7 +188,7 @@ const String responseCodeToString(int code) {
     }
 }
 
-void sendRawHeader(int code, size_t contentLength) {
+void sendRawHeader(int code) {
     String response = String(F("HTTP/1.1 "));
     response += String(code);
     response += " ";
@@ -222,12 +222,12 @@ void handleRequest() {
     }
 
     boolean found = false;
-    for (size_t x = 0; x < sizeof(wwwContent) / sizeof(wwwContent[0]);x++) {
-        if (resourcePath.endsWith(wwwContent[x].name)) {
-            sendRawHeader(200, wwwContent[x].size);
-            httpServer.sendContent("Content-Length: " + String(wwwContent[x].size) + "\r\n");
+    for (const auto & x : wwwContent) {
+        if (resourcePath.endsWith(x.name)) {
+            sendRawHeader(200);
+            httpServer.sendContent("Content-Length: " + String(x.size) + "\r\n");
             httpServer.sendContent("Content-Type: " + getContentType(resourcePath) + "\r\n\r\n");
-            httpServer.sendContent_P((char *) &wwwContentData[wwwContent[x].offset], wwwContent[x].size);
+            httpServer.sendContent_P((char *) &wwwContentData[x.offset], x.size);
             found = true;
             break;
         }
