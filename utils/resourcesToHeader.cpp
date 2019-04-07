@@ -14,20 +14,27 @@
 
 using namespace std;
 
+// modified from https://stackoverflow.com/questions/4538586/how-to-compress-a-buffer-with-zlib
+// to use deflateInit2 to output gzip instead.
 void compress_memory(std::vector<uint8_t> in_data, std::vector<uint8_t> &buffer)
 {
-    const size_t BUFSIZE = 128 * 1024;
-    uint8_t temp_buffer[BUFSIZE];
+    const size_t BUFFER_SIZE = 8 * 1024;
+    uint8_t temp_buffer[BUFFER_SIZE];
 
     z_stream strm;
     strm.zalloc = nullptr;
     strm.zfree = nullptr;
+    strm.opaque = nullptr;
     strm.next_in = in_data.data();
     strm.avail_in = in_data.size();
     strm.next_out = temp_buffer;
-    strm.avail_out = BUFSIZE;
+    strm.avail_out = BUFFER_SIZE;
 
-    deflateInit(&strm, Z_BEST_COMPRESSION);
+    // Use the gzip version of deflate.
+    deflateInit2(&strm, Z_DEFAULT_COMPRESSION, Z_DEFLATED,
+                 15 | 16,
+                 8,
+                 Z_DEFAULT_STRATEGY);
 
     while (strm.avail_in != 0)
     {
@@ -35,9 +42,9 @@ void compress_memory(std::vector<uint8_t> in_data, std::vector<uint8_t> &buffer)
         assert(res == Z_OK);
         if (strm.avail_out == 0)
         {
-            buffer.insert(buffer.end(), temp_buffer, temp_buffer + BUFSIZE);
+            buffer.insert(buffer.end(), temp_buffer, temp_buffer + BUFFER_SIZE);
             strm.next_out = temp_buffer;
-            strm.avail_out = BUFSIZE;
+            strm.avail_out = BUFFER_SIZE;
         }
     }
 
@@ -46,15 +53,15 @@ void compress_memory(std::vector<uint8_t> in_data, std::vector<uint8_t> &buffer)
     {
         if (strm.avail_out == 0)
         {
-            buffer.insert(buffer.end(), temp_buffer, temp_buffer + BUFSIZE);
+            buffer.insert(buffer.end(), temp_buffer, temp_buffer + BUFFER_SIZE);
             strm.next_out = temp_buffer;
-            strm.avail_out = BUFSIZE;
+            strm.avail_out = BUFFER_SIZE;
         }
         deflate_res = deflate(&strm, Z_FINISH);
     }
 
     assert(deflate_res == Z_STREAM_END);
-    buffer.insert(buffer.end(), temp_buffer, temp_buffer + BUFSIZE - strm.avail_out);
+    buffer.insert(buffer.end(), temp_buffer, temp_buffer + BUFFER_SIZE - strm.avail_out);
     deflateEnd(&strm);
 }
 
@@ -64,7 +71,7 @@ int main (int argc, char *argv[])
         cout << "Usage: resourcesToHeader <target directory> <output filename>" << endl;
         return (0);
     }
-    
+
     // Change the working directory to the target.
     chdir(argv[1]);
 
@@ -91,7 +98,6 @@ int main (int argc, char *argv[])
     dp = opendir (argv[1]);
     if (dp != nullptr)
     {
-//        cout << "Start" << endl;
         int offset = 0;
         string delim = "";
         while ((ep = readdir (dp))) {
@@ -130,17 +136,25 @@ int main (int argc, char *argv[])
                     }
                 }
                 delim = ", ";
+                string compressedFile(ep->d_name);
+#ifdef DEBUG
+                compressedFile += ".gz";
+                ofstream cprsout(compressedFile, ofstream::binary | ofstream::trunc );
+                cprsout.write(reinterpret_cast<char*>(&compressedBuffer[0]), compressedBuffer.size() * sizeof(uint8_t));
+#endif
+
             }
         }
         contentData << endl << setw(36) << " " << "};" << endl << endl;
         resources << endl << setw(33) << "};" << endl << endl;
+        // write the stream to disk.
         ofstream fout(argv[2], ofstream::binary | ofstream::trunc );
         fout << headerContent.str() << resources.str() << contentData.str() << endl << "#endif";
-//        cout << "Done.";
+        cout << "Done.";
         (void) closedir (dp);
     }
-    else
-        perror ("Couldn't open the directory");
-
+    else {
+        perror("Couldn't open the directory");
+    }
     return 0;
 }

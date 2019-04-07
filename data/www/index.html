@@ -1,31 +1,112 @@
 <html>
+    <title>Captive Portal</title>
     <head></head>
     <script src="main.js"></script>
     <link rel="stylesheet" type="text/css" href="main.css">
+    <div class='wrapper'>
+        <div class='header'>
+            OTA
+        </div>
+        <div class='row'>
+            <div class='button'>
+                <button onclick='startOTA()'>Enable OTA</button>
+            </div>
+        </div>
+    </div>
+    <br/>
     <div class='wrapper'>
         <div class='header'>
             Network
         </div>
         <div class='row'>
             <div class='caption'>SSID:</div>
-            <div class='input'><input style="width: 100%" onchange='updateConfig("ssid", this.value);'/></div>
+            <div class='input'><input style="width: 100%" onblur='updateConfig("ssid", this.value);'/></div>
         </div>
         <div class='row'>
             <div class='caption'>Password:</div>
-            <div class='input'><input style="width: 100%" onchange='updateConfig("password", this.value);'/></div>
+            <div class='input'><input style="width: 100%" onblur='updateConfig("password", this.value);'/></div>
         </div>
         <div class='row'>
             <div class='caption'>Host Name:</div>
-            <div class='input'><input style="width: 100%"  onchange='updateConfig("hostname", this.value);'/></div>
+            <div class='input'><input style="width: 100%" onblur='updateConfig("hostname", this.value);'/></div>
         </div>
         <div class='row'>
             <div class='caption'>mDNS:</div>
-            <div class='input'><input style="width: 100%"  onchange='updateConfig("mdns", this.value);'/></div>
+            <div class='input'><input style="width: 100%" onblur='updateConfig("mdns", this.value);'/></div>
+        </div>
+        <div class='row'>
+            <div class='caption'>IP Address:</div>
+            <div class='input'><input style="width: 100%" readonly/></div>
         </div>
         <div class='row'>
             <div class='button'>
                 <button onclick='submitConfig()'>Submit</button>
             </div>
+        </div>
+    </div>
+    <br/>
+    <div class='wrapper'>
+        <div class='header'>
+            ESP Info
+        </div>
+        <div class='row'>
+            <div class='caption'>Boot Version:</div>
+            <div class='input'><input style="width: 100%" readonly/></div>
+        </div>
+        <div class='row'>
+            <div class='caption'>Boot Mode:</div>
+            <div class='input'><input style="width: 100%" readonly/></div>
+        </div>
+        <div class='row'>
+            <div class='caption'>Chip ID:</div>
+            <div class='input'><input style="width: 100%" readonly/></div>
+        </div>
+        <div class='row'>
+            <div class='caption'>CPU Frequency:</div>
+            <div class='input'><input style="width: 100%" readonly/></div>
+        </div>
+        <div class='row'>
+            <div class='caption'>Cycle Count:</div>
+            <div class='input'><input style="width: 100%" readonly/></div>
+        </div>
+        <div class='row'>
+            <div class='caption'>Flash ID:</div>
+            <div class='input'><input style="width: 100%" readonly/></div>
+        </div>
+        <div class='row'>
+            <div class='caption'>Flash Real Size:</div>
+            <div class='input'><input style="width: 100%" readonly/></div>
+        </div>
+        <div class='row'>
+            <div class='caption'>Flash Size:</div>
+            <div class='input'><input style="width: 100%" readonly/></div>
+        </div><div class='row'>
+            <div class='caption'>Flash Speed:</div>
+            <div class='input'><input style="width: 100%" readonly/></div>
+        </div>
+        <div class='row'>
+            <div class='caption'>Flash Mode:</div>
+            <div class='input'><input style="width: 100%" readonly/></div>
+        </div>
+        <div class='row'>
+            <div class='caption'>Flash Size by Chip ID:</div>
+            <div class='input'><input style="width: 100%" readonly/></div>
+        </div>
+        <div class='row'>
+            <div class='caption'>Free Heap:</div>
+            <div class='input'><input style="width: 100%" readonly/></div>
+        </div>
+        <div class='row'>
+            <div class='caption'>Free Sketch Space:</div>
+            <div class='input'><input style="width: 100%" readonly/></div>
+        </div>
+        <div class='row'>
+            <div class='caption'>Sketch Size:</div>
+            <div class='input'><input style="width: 100%" readonly/></div>
+        </div>
+        <div class='row'>
+            <div class='caption'>SDK Version:</div>
+            <div class='input'><input style="width: 100%" readonly/></div>
         </div>
     </div>
 </html>

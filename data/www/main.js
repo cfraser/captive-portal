@@ -21,3 +21,9 @@ function updateConfig(key, value) {
 function submitConfig() {
     connection.send(JSON.stringify(config));
 }
+
+function startOTA() {
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", "/toggleOTA");
+    xhr.send("");
+}

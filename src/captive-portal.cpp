@@ -22,7 +22,7 @@ const byte DNS_PORT = 53;
 const int MS_PER_FRAME = 16; // 60 fps
 const IPAddress CAPTIVE_IP(10, 0, 0, 1);
 const IPAddress CAPTIVE_NETMASK(255, 255, 255, 0);
-
+boolean otaEnabled = false;
 
 
 void startOTA() {
@@ -198,8 +198,6 @@ void sendRawHeader(int code) {
     response += "Pragma: no-cache\r\n";
     response += "Expires: -1\r\n";
     response += "Content-Encoding: gzip\r\n";
-//    response += "Accept-Ranges: none\r\n";
-//    response += "Transfer-Encoding: chunked\r\n";
     response += "Connection: close\r\n";
     httpServer.sendContent(response);
 }
@@ -210,6 +208,53 @@ void handleNotFound(){
     Serial.println("\t" + httpServer.uri() + " was not found.");
 }
 
+void handleOTA() {
+    if (otaEnabled) {
+        otaEnabled = false;
+    } else {
+        otaEnabled = true;
+        ArduinoOTA.onStart([]() {
+            Serial.println("OTA Start\n");
+        });
+        ArduinoOTA.onEnd([]() {
+            Serial.println("\nOTA End\n");
+        });
+        ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+            Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+        });
+        ArduinoOTA.onError([](ota_error_t error) {
+            Serial.printf("Error[%u]: ", error);
+            if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+            else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+            else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+            else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+            else if (error == OTA_END_ERROR) Serial.println("End Failed");
+        });
+        ArduinoOTA.begin();
+        Serial.println("OTA Ready");
+        Serial.print("IP address: ");
+        Serial.println(WiFi.localIP());
+    }
+}
+
+void getPortalResource(String &filename) {
+    boolean found = false;
+    for (const auto & x : wwwContent) {
+        if (filename.equals("/" + x.name)) {
+            Serial.println("Found [" + filename + "}");
+            sendRawHeader(200);
+            httpServer.sendContent("Content-Length: " + String(x.size) + "\r\n");
+            httpServer.sendContent("Content-Type: " + getContentType(filename) + "\r\n\r\n");
+            httpServer.sendContent_P((char *) &wwwContentData[x.offset], x.size);
+            found = true;
+            break;
+        }
+    }
+
+    if (!found) {
+        handleNotFound();
+    }
+}
 
 void handleRequest() {
     Serial.println("handleRequest: [ GET: " + httpServer.hostHeader() + httpServer.uri() + "]");
@@ -221,21 +266,7 @@ void handleRequest() {
         Serial.println("\t" + resourcePath);
     }
 
-    boolean found = false;
-    for (const auto & x : wwwContent) {
-        if (resourcePath.endsWith(x.name)) {
-            sendRawHeader(200);
-            httpServer.sendContent("Content-Length: " + String(x.size) + "\r\n");
-            httpServer.sendContent("Content-Type: " + getContentType(resourcePath) + "\r\n\r\n");
-            httpServer.sendContent_P((char *) &wwwContentData[x.offset], x.size);
-            found = true;
-            break;
-        }
-    }
-
-    if (!found) {
-        handleNotFound();
-    }
+    getPortalResource(resourcePath);
 }
 
 String toStringIp(IPAddress ip) {
@@ -254,12 +285,21 @@ void handleRedirect(){
         httpServer.client().stop();
 }
 
+void handleGetConfig(){
+        // if the requested file or page doesn't exist, redirect to root.
+        httpServer.sendHeader("Location", String("http://") + toStringIp(httpServer.client().localIP()) + "/index.html", true);
+        httpServer.send(302, "text/plain", "");
+        httpServer.client().stop();
+}
+
 
 
 void initHttpServer() { // Start a HTTP httpServer with a file read handler and an upload handler
     httpServer.on("/generate_204", HTTP_GET, handleNotFound);
     httpServer.on("/fwlink", HTTP_GET, handleNotFound);
     httpServer.on("/wpad.dat", HTTP_GET, handleNotFound);
+    httpServer.on("/toggleOTA", HTTP_POST, handleOTA);
+    httpServer.on("/config.json", HTTP_GET, handleGetConfig);
     httpServer.onNotFound(handleRequest);
     httpServer.begin();
 }
@@ -380,7 +420,9 @@ void processInput() {
 }
 
 void update() {
-    ArduinoOTA.handle();
+    if (otaEnabled) {
+        ArduinoOTA.handle();
+    }
 }
 
 void render() {
