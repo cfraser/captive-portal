@@ -10,8 +10,7 @@
 #include <assert.h>
 #include <zlib.h>
 #include <string>
-
-class String;
+#include <algorithm>
 
 using namespace std;
 
@@ -59,15 +58,23 @@ void compress_memory(std::vector<uint8_t> in_data, std::vector<uint8_t> &buffer)
     deflateEnd(&strm);
 }
 
-int main ()
+int main (int argc, char *argv[])
 {
+    if (argc != 3) {
+        cout << "Usage: resourcesToHeader <target directory> <output filename>" << endl;
+        return (0);
+    }
+    
+    // Change the working directory to the target.
+    chdir(argv[1]);
+
     DIR *dp;
     struct dirent *ep;
     struct stat file_info{};
-    std::stringstream headerContent();
-    std::stringstream resources();
-    std::stringstream contentData();
-    std::stringstream contentLine();
+    std::stringstream headerContent;
+    std::stringstream resources;
+    std::stringstream contentData;
+    std::stringstream contentLine;
     headerContent << "#ifndef WWW_CONTENT_H" << endl \
                 << "#define WWW_CONTENT_H" << endl \
                 << "" << endl \
@@ -81,11 +88,10 @@ int main ()
                 << "\n";
     resources   << "const wwwFile wwwContent[]   = {";
     contentData << "uint8_t wwwContentData[] PROGMEM = {";
-    dp = opendir ("./");
-    cout << "Start" << endl;
+    dp = opendir (argv[1]);
     if (dp != nullptr)
     {
-        ofstream fout("../portalResources.h", ofstream::binary | ofstream::trunc );
+//        cout << "Start" << endl;
         int offset = 0;
         string delim = "";
         while ((ep = readdir (dp))) {
@@ -128,8 +134,9 @@ int main ()
         }
         contentData << endl << setw(36) << " " << "};" << endl << endl;
         resources << endl << setw(33) << "};" << endl << endl;
+        ofstream fout(argv[2], ofstream::binary | ofstream::trunc );
         fout << headerContent.str() << resources.str() << contentData.str() << endl << "#endif";
-        cout << "Done.";
+//        cout << "Done.";
         (void) closedir (dp);
     }
     else
