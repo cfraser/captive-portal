@@ -124,12 +124,16 @@ void ESPConfig::setMdns(char *mdns) {
     ESPConfig::mdns = mdns;
 }
 
-char* ESPConfig::getEspInfo() {
+String ESPConfig::getConfig() {
+    return "{notimplemented: ''}";
+}
+
+String ESPConfig::getEspInfo() {
     DynamicJsonDocument json(20);
 
     Serial.printf( "\n\n\nESP8266 INFORMATION\n===================\n" );
 
-    //ESP.getVcc() ⇒ may be used to measure supply voltage. ESP needs to reconfigure the ADC at startup in order for this feature to be available. ⇒ https://github.com/esp8266/Arduino/blob/master/doc/libraries.md#user-content-esp-specific-apis
+    //ESPBy.getVcc() ⇒ may be used to measure supply voltage. ESP needs to reconfigure the ADC at startup in order for this feature to be available. ⇒ https://github.com/esp8266/Arduino/blob/master/doc/libraries.md#user-content-esp-specific-apis
     json["bootVersion"] =  ESP.getBootVersion();
     json["bootMode"] =  ESP.getBootMode();
     json["chipId"] =  ESP.getChipId();

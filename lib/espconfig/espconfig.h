@@ -18,7 +18,8 @@ public:
     bool loadConfig();
     bool saveConfig();
     bool wasLoaded();
-    char* getEspInfo();
+    String getEspInfo();
+    String getConfig();
 
     String getSsid() const;
     String getPassword() const;

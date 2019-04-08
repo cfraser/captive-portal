@@ -237,6 +237,10 @@ void handleOTA() {
     }
 }
 
+void handleEspInfo() {
+    httpServer.send(404, "text/html", config.getEspInfo());
+}
+
 void getPortalResource(String &filename) {
     boolean found = false;
     for (const auto & x : wwwContent) {
@@ -285,11 +289,13 @@ void handleRedirect(){
         httpServer.client().stop();
 }
 
+void handleESPInfo(){
+        httpServer.send(200, "application/json", "");
+}
+
 void handleGetConfig(){
-        // if the requested file or page doesn't exist, redirect to root.
-        httpServer.sendHeader("Location", String("http://") + toStringIp(httpServer.client().localIP()) + "/index.html", true);
-        httpServer.send(302, "text/plain", "");
-        httpServer.client().stop();
+    Serial.println(config.getConfig());
+    httpServer.send(200, "application/json", config.getConfig());
 }
 
 
@@ -299,6 +305,7 @@ void initHttpServer() { // Start a HTTP httpServer with a file read handler and 
     httpServer.on("/fwlink", HTTP_GET, handleNotFound);
     httpServer.on("/wpad.dat", HTTP_GET, handleNotFound);
     httpServer.on("/toggleOTA", HTTP_POST, handleOTA);
+    httpServer.on("/espInfo", HTTP_GET, handleESPInfo);
     httpServer.on("/config.json", HTTP_GET, handleGetConfig);
     httpServer.onNotFound(handleRequest);
     httpServer.begin();

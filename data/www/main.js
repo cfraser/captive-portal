@@ -27,3 +27,9 @@ function startOTA() {
     xhr.open("POST", "/toggleOTA");
     xhr.send("");
 }
+
+function getEspInfo() {
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", "/espInfo");
+    xhr.send("");
+}

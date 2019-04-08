@@ -99,7 +99,8 @@ int main (int argc, char *argv[])
     if (dp != nullptr)
     {
         int offset = 0;
-        string delim = "";
+        string delim = "\n";
+        string resourcesDelim = "";
         while ((ep = readdir (dp))) {
             stat(ep->d_name, &file_info);
             // Regular file, and not a directory.
@@ -112,13 +113,14 @@ int main (int argc, char *argv[])
                 vector<uint8_t> compressedBuffer;
                 compress_memory(buffer,compressedBuffer);
                 // this assumes file names that are less than 25 chars. Adjust as needed.
-                resources << delim << endl << setw(36) << "{"
+                resources << resourcesDelim << endl << setw(36) << "{"
                         << setw(25) << string("\"") + ep->d_name + "\", "
                         << setw(5) << to_string(offset) << ", "
                         << setw(5) << to_string(compressedBuffer.size())
                         << "}";
+                resourcesDelim = ",";
                 offset += compressedBuffer.size();
-                contentData << delim << endl << setw(38) << " " << "// [" << ep->d_name << "]" << endl;
+                contentData << delim << setw(38) << " " << "// [" << ep->d_name << "]" << endl;
                 delim = "";
                 int columnCount = 0;
                 for (auto it = compressedBuffer.begin(); it != compressedBuffer.end(); ++it) {
@@ -129,16 +131,22 @@ int main (int argc, char *argv[])
                         delim = "";
                         columnCount = 0;
                     } else if (it == compressedBuffer.end() - 1) {
+                        if (contentLine.str().empty()) {
+                            delim = "";
+                            continue;
+                        }
                         contentData << setw(38) << " " << contentLine.str();
                         std::stringstream().swap(contentLine);
-                    } else {
+                        delim = ",\n";
+                    }
+                    else {
                         delim = ", ";
                     }
                 }
-                delim = ", ";
-                string compressedFile(ep->d_name);
+
 #ifdef DEBUG
                 compressedFile += ".gz";
+                string compressedFile(ep->d_name);
                 ofstream cprsout(compressedFile, ofstream::binary | ofstream::trunc );
                 cprsout.write(reinterpret_cast<char*>(&compressedBuffer[0]), compressedBuffer.size() * sizeof(uint8_t));
 #endif
