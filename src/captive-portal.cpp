@@ -25,25 +25,7 @@ const IPAddress CAPTIVE_NETMASK(255, 255, 255, 0);
 boolean otaEnabled = false;
 
 
-void startOTA() {
-    Serial.println("Starting OTA");
-    ArduinoOTA.setHostname(config.getHostName().c_str());
-    ArduinoOTA.onStart([]() { // switch off all the PWMs during upgrade
-    });
 
-    ArduinoOTA.onEnd([]() { // do a fancy thing with our board led at end
-    });
-
-    ArduinoOTA.onError([](ota_error_t error) {
-        (void)error;
-        delay(2000);
-        ESP.restart();
-    });
-
-    /* setup the OTA httpServer */
-    Serial.println("OTA Started");
-    ArduinoOTA.begin();
-}
 
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) { // When a WebSocket message is received
     switch (type) {
@@ -208,19 +190,21 @@ void handleNotFound(){
     Serial.println("\t" + httpServer.uri() + " was not found.");
 }
 
-void handleOTA() {
+void toggleOTA() {
+    Serial.println("Starting OTA");
+    ArduinoOTA.setHostname(config.getHostName().c_str());
     if (otaEnabled) {
         otaEnabled = false;
     } else {
         otaEnabled = true;
         ArduinoOTA.onStart([]() {
-            Serial.println("OTA Start\n");
+            Serial.println("OTA Start.\n");
         });
         ArduinoOTA.onEnd([]() {
-            Serial.println("\nOTA End\n");
+            Serial.println("\nOTA End.\n");
         });
         ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-            Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+            Serial.printf("Progress: %u%%\n", (progress / (total / 100)));
         });
         ArduinoOTA.onError([](ota_error_t error) {
             Serial.printf("Error[%u]: ", error);
@@ -240,6 +224,7 @@ void handleOTA() {
 void handleEspInfo() {
     httpServer.send(404, "text/html", config.getEspInfo());
 }
+
 
 void getPortalResource(String &filename) {
     boolean found = false;
@@ -290,7 +275,7 @@ void handleRedirect(){
 }
 
 void handleESPInfo(){
-        httpServer.send(200, "application/json", "");
+        httpServer.send(200, "application/json", config.getEspInfo());
 }
 
 void handleGetConfig(){
@@ -304,7 +289,7 @@ void initHttpServer() { // Start a HTTP httpServer with a file read handler and 
     httpServer.on("/generate_204", HTTP_GET, handleNotFound);
     httpServer.on("/fwlink", HTTP_GET, handleNotFound);
     httpServer.on("/wpad.dat", HTTP_GET, handleNotFound);
-    httpServer.on("/toggleOTA", HTTP_POST, handleOTA);
+    httpServer.on("/toggleOTA", HTTP_POST, toggleOTA);
     httpServer.on("/espInfo", HTTP_GET, handleESPInfo);
     httpServer.on("/config.json", HTTP_GET, handleGetConfig);
     httpServer.onNotFound(handleRequest);

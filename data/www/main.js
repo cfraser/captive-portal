@@ -25,11 +25,10 @@ function submitConfig() {
 function startOTA() {
     var xhr = new XMLHttpRequest();
     xhr.open("POST", "/toggleOTA");
-    xhr.send("");
+    xhr.send("{startOTA: 'true'");
 }
 
 function getEspInfo() {
     var xhr = new XMLHttpRequest();
     xhr.open("GET", "/espInfo");
-    xhr.send("");
 }

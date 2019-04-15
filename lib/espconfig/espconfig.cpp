@@ -1,6 +1,3 @@
-//
-// Created by cfraser on 2019-03-03.
-//
 #include "espconfig.h"
 
 
@@ -29,7 +26,7 @@ bool ESPConfig::loadConfig() {
     configFile.flush();
     configFile.close();
 
-    StaticJsonDocument<20> json;
+    StaticJsonDocument<1024> json;
     deserializeJson(json, buf.get());
 
     if (!json.isNull()) {
@@ -129,10 +126,7 @@ String ESPConfig::getConfig() {
 }
 
 String ESPConfig::getEspInfo() {
-    DynamicJsonDocument json(20);
-
-    Serial.printf( "\n\n\nESP8266 INFORMATION\n===================\n" );
-
+    DynamicJsonDocument json(1024);
     //ESPBy.getVcc() ⇒ may be used to measure supply voltage. ESP needs to reconfigure the ADC at startup in order for this feature to be available. ⇒ https://github.com/esp8266/Arduino/blob/master/doc/libraries.md#user-content-esp-specific-apis
     json["bootVersion"] =  ESP.getBootVersion();
     json["bootMode"] =  ESP.getBootMode();
@@ -149,7 +143,7 @@ String ESPConfig::getEspInfo() {
     json["freeSketchSpace"] =  ESP.getFreeSketchSpace();
     json["sdkVersion"] =  ESP.getSdkVersion();
     json["sketchSize"] =  ESP.getSketchSize();
-    char* retVal = new char[json.size()];
-    deserializeJson(json, retVal);
+    String retVal;
+    serializeJson(json, retVal);
     return retVal;
 }
